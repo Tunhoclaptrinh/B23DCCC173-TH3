@@ -19,54 +19,154 @@ const AppointmentScheduler: React.FC = () => {
   const [editingAppointment, setEditingAppointment] = useState<DichVu.LichHen | null>(null);
 
   // Filter available employees based on selected date and service
-  useEffect(() => {
-    if (selectedDate && selectedService) {
-      const dayOfWeek = selectedDate.format('dddd').toLowerCase();
-      const dateStr = selectedDate.format('YYYY-MM-DD');
+  // In AppointmentScheduler.tsx - Update the useEffect for filtering available employees
+
+useEffect(() => {
+  if (selectedDate && selectedService) {
+    const dayOfWeek = selectedDate.format('dddd').toLowerCase();
+    const dateStr = selectedDate.format('YYYY-MM-DD');
+    
+    // Get all employees who can provide this service
+    const serviceProviders = getEmployeesByService(selectedService);
+    
+    // Debug output to help identify issues
+    console.log('Selected day:', dayOfWeek);
+    console.log('Service providers for service:', selectedService, serviceProviders);
+    
+    const available = serviceProviders.filter(employee => {
+      // Check if employee has work schedule for the selected day
+      const hasWorkSchedule = employee.lichLamViec && 
+                             Array.isArray(employee.lichLamViec[dayOfWeek]) && 
+                             employee.lichLamViec[dayOfWeek].length > 0;
       
-      const serviceProviders = getEmployeesByService(selectedService);
+      // Debug output
+      console.log(`Employee ${employee.name} has work schedule:`, 
+                 hasWorkSchedule, employee.lichLamViec?.[dayOfWeek]);
       
-      const available = serviceProviders.filter(employee => {
-        const hasWorkSchedule = employee.lichLamViec && 
-                               employee.lichLamViec[dayOfWeek] && 
-                               employee.lichLamViec[dayOfWeek].start && 
-                               employee.lichLamViec[dayOfWeek].end;
+      if (!hasWorkSchedule) {
+        return false;
+      }
+      
+      // Check if employee has not reached their maximum daily appointments
+      if (employee.sokhach) {
+        const dailyAppointments = appointments.filter(
+          app => app.employee_id === employee.employee_id && 
+                 app.date === dateStr
+        );
         
-        if (!hasWorkSchedule) {
+        // Debug output
+        console.log(`Employee ${employee.name} daily appointments:`, 
+                   dailyAppointments.length, 'max:', employee.sokhach);
+        
+        if (dailyAppointments.length >= employee.sokhach) {
           return false;
         }
-        
-        if (employee.sokhach) {
-          const dailyAppointments = appointments.filter(
-            app => app.employee_id === employee.employee_id && 
-                   app.date === dateStr
-          );
-          
-          if (dailyAppointments.length >= employee.sokhach) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
+      }
       
-      setAvailableEmployees(available);
-    } else {
-      setAvailableEmployees([]);
+      return true;
+    });
+    
+    console.log('Available employees after filtering:', available);
+    setAvailableEmployees(available);
+    
+    // If no available employees are found but we have service providers,
+    // check if we need to add work schedules
+    if (available.length === 0 && serviceProviders.length > 0) {
+      // Here you could implement a notification or auto-fix
+      console.warn('Service providers exist but none are available. Check work schedules and capacity.');
     }
-  }, [selectedDate, selectedService, employees, appointments, services, getEmployeesByService]);
+  } else {
+    setAvailableEmployees([]);
+  }
+}, [selectedDate, selectedService, employees, appointments, services, getEmployeesByService]);
+
+
+// Add this function to your AppointmentScheduler component
+// or to a setup script that runs when your app initializes
+
+const initializeSampleData = () => {
+  // Check if employees exist
+  if (employees.length === 0) {
+    console.log("Initializing sample employee data...");
+    
+    // Add a sample employee
+    const sampleEmployee = {
+      employee_id: Date.now(),
+      name: "Sample Provider",
+      age: 30,
+      sokhach: 10, // Can handle 10 appointments per day
+      lichLamViec: {
+        monday: [{ start: "09:00", end: "17:00" }],
+        tuesday: [{ start: "09:00", end: "17:00" }],
+        wednesday: [{ start: "09:00", end: "17:00" }],
+        thursday: [{ start: "09:00", end: "17:00" }],
+        friday: [{ start: "09:00", end: "17:00" }],
+        saturday: [{ start: "10:00", end: "15:00" }]
+      },
+      dichvu_id: services.map(s => s.dichvu_id), // Can provide all services
+      services: services.map(s => s.dichvu_id)
+    };
+    
+    addEmployee(sampleEmployee);
+  }
   
+  // Check if any employees have services
+  const employeesWithoutServices = employees.filter(
+    emp => !emp.services || emp.services.length === 0
+  );
+  
+  if (employeesWithoutServices.length > 0) {
+    console.log("Updating employees with missing services...");
+    
+    employeesWithoutServices.forEach(emp => {
+      // Update to provide all services
+      const updatedEmployee = {
+        ...emp,
+        dichvu_id: services.map(s => s.dichvu_id),
+        services: services.map(s => s.dichvu_id)
+      };
+      
+      updateEmployee(updatedEmployee);
+    });
+  }
+  
+  // Check if employees have work schedules
+  employees.forEach(emp => {
+    if (!emp.lichLamViec || Object.keys(emp.lichLamViec).length === 0) {
+      console.log(`Adding work schedule for ${emp.name}...`);
+      
+      const updatedEmployee = {
+        ...emp,
+        lichLamViec: {
+          monday: [{ start: "09:00", end: "17:00" }],
+          tuesday: [{ start: "09:00", end: "17:00" }],
+          wednesday: [{ start: "09:00", end: "17:00" }],
+          thursday: [{ start: "09:00", end: "17:00" }],
+          friday: [{ start: "09:00", end: "17:00" }]
+        }
+      };
+      
+      updateEmployee(updatedEmployee);
+    }
+  });
+};
+
+// Call this in useEffect with an empty dependency array to run once on component mount
+useEffect(() => {
+  initializeSampleData();
+}, []);
+
   // Handle form submission
   const handleSubmit = (values: any) => {
-    console.log('Form values:', values); // Kiểm tra giá trị từ form
+    console.log('Form values:', values);
 
     const date = values.date.format('YYYY-MM-DD');
     const time = values.time.format('HH:mm');
     const service = services.find(s => s.dichvu_id === values.dichvu_id);
     const duration = service?.thoiGianThucHien || 60;
-    console.log('Service duration:', duration); // Kiểm tra thời gian dịch vụ
+    console.log('Service duration:', duration);
 
-    // Kiểm tra xung đột lịch hẹn
+    // Check for scheduling conflicts
     const hasConflict = checkAppointmentConflict(
       values.employee_id,
       date,
@@ -74,42 +174,50 @@ const AppointmentScheduler: React.FC = () => {
       duration,
       editingAppointment?.lichhen_id
     );
-    console.log('Has conflict:', hasConflict); // Kiểm tra có xung đột không
+    console.log('Has conflict:', hasConflict);
 
     if (hasConflict) {
       message.error('There is a scheduling conflict. Please select a different time.');
       return;
     }
 
-    // Kiểm tra nhân viên có thể cung cấp dịch vụ không
+    // Check if employee can provide the service
     const canProvideService = canEmployeeProvideService(values.employee_id, values.dichvu_id);
-    console.log('Can provide service:', canProvideService); // Kiểm tra khả năng cung cấp dịch vụ
+    console.log('Can provide service:', canProvideService);
 
     if (!canProvideService) {
       message.error('This employee cannot provide the selected service.');
       return;
     }
 
-    // Kiểm tra thời gian hẹn có trong giờ làm việc không
+    // Check if appointment time is within employee's working hours
     const employee = employees.find(e => e.employee_id === values.employee_id);
-    console.log('Selected employee:', employee); // Kiểm tra nhân viên được chọn
+    console.log('Selected employee:', employee);
 
     if (employee && employee.lichLamViec) {
       const dayOfWeek = moment(date).format('dddd').toLowerCase();
-      const workSchedule = employee.lichLamViec[dayOfWeek];
-      console.log('Day of week:', dayOfWeek, 'Work schedule:', workSchedule); // Kiểm tra lịch làm việc
+      const workTimeSlots = employee.lichLamViec[dayOfWeek];
+      console.log('Day of week:', dayOfWeek, 'Work time slots:', workTimeSlots);
 
-      if (workSchedule) {
-        const workStart = moment(`${date} ${workSchedule.start}`, 'YYYY-MM-DD HH:mm');
-        const workEnd = moment(`${date} ${workSchedule.end}`, 'YYYY-MM-DD HH:mm');
+      if (Array.isArray(workTimeSlots) && workTimeSlots.length > 0) {
         const appointmentStart = moment(`${date} ${time}`, 'YYYY-MM-DD HH:mm');
         const appointmentEnd = moment(appointmentStart).add(duration, 'minutes');
-        console.log('Work start:', workStart.format('YYYY-MM-DD HH:mm'));
-        console.log('Work end:', workEnd.format('YYYY-MM-DD HH:mm'));
-        console.log('Appointment start:', appointmentStart.format('YYYY-MM-DD HH:mm'));
-        console.log('Appointment end:', appointmentEnd.format('YYYY-MM-DD HH:mm'));
-
-        if (appointmentStart < workStart || appointmentEnd > workEnd) {
+        
+        // Check if appointment fits within any of the employee's work time slots
+        const isWithinWorkHours = workTimeSlots.some(slot => {
+          const workStart = moment(`${date} ${slot.start}`, 'YYYY-MM-DD HH:mm');
+          const workEnd = moment(`${date} ${slot.end}`, 'YYYY-MM-DD HH:mm');
+          
+          console.log('Checking time slot:', slot);
+          console.log('Work start:', workStart.format('YYYY-MM-DD HH:mm'));
+          console.log('Work end:', workEnd.format('YYYY-MM-DD HH:mm'));
+          console.log('Appointment start:', appointmentStart.format('YYYY-MM-DD HH:mm'));
+          console.log('Appointment end:', appointmentEnd.format('YYYY-MM-DD HH:mm'));
+          
+          return appointmentStart >= workStart && appointmentEnd <= workEnd;
+        });
+        
+        if (!isWithinWorkHours) {
           message.error('The selected time is outside of the employee\'s working hours.');
           return;
         }
@@ -122,7 +230,7 @@ const AppointmentScheduler: React.FC = () => {
       return;
     }
 
-    // Tạo hoặc cập nhật lịch hẹn
+    // Create or update appointment
     const appointmentData: DichVu.LichHen = {
       lichhen_id: editingAppointment ? editingAppointment.lichhen_id : Date.now(),
       date,

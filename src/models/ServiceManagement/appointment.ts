@@ -8,7 +8,6 @@ export interface Employee extends DichVu.NhanVien {
   // Additional fields for local implementation
   lichLamViec?: {
     [key: string]: {
-      [x: string]: any;
       start: string;
       end: string;
     }

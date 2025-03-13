@@ -87,7 +87,7 @@ export default [
 			{
 				"path": "/service-management/dash-board",
 				"name": "Dash Board",
-				component: "./ServiceManagement/ServiceManagement",
+				component: "./ServiceManagement/DashBoard",
 			},
 			{
 				"path": "/service-management/customer-management",

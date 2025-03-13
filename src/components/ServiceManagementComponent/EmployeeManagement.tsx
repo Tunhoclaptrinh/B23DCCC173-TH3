@@ -3,6 +3,38 @@ import { useModel } from 'umi';
 import { Form, Input, InputNumber, Button, Table, Space, Modal, Card, Tabs, TimePicker, Checkbox, Popconfirm, message, Select } from 'antd';
 import moment from 'moment';
 
+// Assuming DichVu interfaces are defined elsewhere
+declare namespace DichVu {
+  export interface NhanVien {
+    employee_id: number;
+    name: string;
+    age: number;
+    sokhach?: number;
+    lichLamViec?: { [key: string]: { start: string; end: string } };
+    dichvu_id: number[];
+  }
+
+  export interface DichVu {
+    dichvu_id: number;
+    name: string;
+    price: number;
+    description?: string;
+    thoiGianThucHien?: number;
+  }
+
+  export interface Review {
+    review_id: number;
+    review: string;
+    rating: number;
+    employee_id: number;
+    user_id: number;
+    dichvu_id: number;
+    create_at?: string;
+    appointment_id?: number;
+    response?: string;
+  }
+}
+
 const { TabPane } = Tabs;
 const { Option } = Select;
 const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -15,11 +47,12 @@ const EmployeeManagement = () => {
     deleteEmployee, 
     services 
   } = useModel('ServiceManagement.appointment');
-  
+
   const [form] = Form.useForm();
-  const [isModalVisible, setIsModalVisible] = useState(false); 
-  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<DichVu.NhanVien | null>(null);
   const [scheduleForm] = Form.useForm();
+  const [employeeStats, setEmployeeStats] = useState<any[]>([]); // To store enriched employee data
 
   // Reset form when modal is closed
   useEffect(() => {
@@ -32,9 +65,8 @@ const EmployeeManagement = () => {
   // Set schedule form values when editing an employee
   useEffect(() => {
     if (editingEmployee && editingEmployee.lichLamViec) {
-      const scheduleValues = {};
-      
-      weekDays.forEach(day => {
+      const scheduleValues: { [key: string]: any } = {};
+      weekDays.forEach((day) => {
         const schedule = editingEmployee.lichLamViec[day];
         if (schedule) {
           scheduleValues[`${day}_enabled`] = true;
@@ -44,117 +76,68 @@ const EmployeeManagement = () => {
           scheduleValues[`${day}_enabled`] = false;
         }
       });
-      
       scheduleForm.setFieldsValue(scheduleValues);
     } else {
       // Default schedule (Monday-Friday, 9am-5pm)
-      const defaultSchedule = {};
-      weekDays.forEach(day => {
+      const defaultSchedule: { [key: string]: any } = {};
+      weekDays.forEach((day) => {
         const isWeekday = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(day);
         defaultSchedule[`${day}_enabled`] = isWeekday;
         defaultSchedule[`${day}_start`] = moment('09:00', 'HH:mm');
         defaultSchedule[`${day}_end`] = moment('17:00', 'HH:mm');
       });
-      
       scheduleForm.setFieldsValue(defaultSchedule);
     }
   }, [editingEmployee, scheduleForm]);
+
+  // Calculate employee stats (rating and review count) from local storage
+  useEffect(() => {
+    const storedReviews: DichVu.Review[] = JSON.parse(localStorage.getItem('reviews') || '[]');
+    const stats = employees.map((employee) => {
+      const employeeReviews = storedReviews.filter((r) => r.employee_id === employee.employee_id);
+      const totalRating = employeeReviews.reduce((sum, review) => sum + review.rating, 0);
+      const reviewCount = employeeReviews.length;
+      const averageRating = reviewCount > 0 ? totalRating / reviewCount : 0;
+
+      return {
+        ...employee,
+        averageRating,
+        reviewCount,
+      };
+    });
+    setEmployeeStats(stats);
+  }, [employees]); // Re-run when employees change
 
   const showAddModal = () => {
     setEditingEmployee(null);
     setIsModalVisible(true);
   };
 
-//   const showEditModal = (employee) => {
-//     setEditingEmployee(employee);
-//     form.setFieldsValue({
-//       name: employee.name,
-//       age: employee.age,
-//       sokhach: employee.sokhach || 10,
-//       services: employee.services || []
-//     });
-//     setIsModalVisible(true);
-//   };
-const showEditModal = (employee) => {
+  const showEditModal = (employee: DichVu.NhanVien) => {
     setEditingEmployee(employee);
-  
     form.setFieldsValue({
       name: employee.name,
       age: employee.age,
       sokhach: employee.sokhach || 10,
-      services: employee.services || [],
+      services: employee.dichvu_id || [], // Use dichvu_id as per model
     });
-  
-    const scheduleValues = {};
-    weekDays.forEach(day => {
-      const schedule = employee.lichLamViec?.[day];
-      if (schedule) {
-        scheduleValues[`${day}_enabled`] = true;
-        scheduleValues[`${day}_start`] = moment(schedule.start, 'HH:mm');
-        scheduleValues[`${day}_end`] = moment(schedule.end, 'HH:mm');
-      } else {
-        scheduleValues[`${day}_enabled`] = false;
-      }
-    });
-  
-    scheduleForm.setFieldsValue(scheduleValues);
     setIsModalVisible(true);
   };
-  
 
   const handleCancel = () => {
     setIsModalVisible(false);
   };
 
-  const handleDelete = (employeeId) => {
+  const handleDelete = (employeeId: number) => {
     deleteEmployee(employeeId);
     message.success('Employee deleted successfully');
   };
 
-//   const onFinish = (values) => {
-//     // Get schedule from the scheduleForm
-//     const scheduleValues = scheduleForm.getFieldsValue();
-//     const lichLamViec = {};
-    
-//     weekDays.forEach(day => {
-//       if (scheduleValues[`${day}_enabled`]) {
-//         lichLamViec[day] = {
-//           start: scheduleValues[`${day}_start`].format('HH:mm'),
-//           end: scheduleValues[`${day}_end`].format('HH:mm')
-//         };
-//       }
-//     });
-    
-//     const employeeData = {
-//       ...values,
-//       lichLamViec,
-//       services: values.services || []  // Ensure services array exists
-//     };
-    
-//     if (editingEmployee) {
-//       // Update existing employee
-//       updateEmployee({
-//         ...editingEmployee,
-//         ...employeeData
-//       });
-//       message.success('Employee updated successfully');
-//     } else {
-//       // Add new employee
-//       addEmployee({
-//         ...employeeData,
-//         employee_id: Date.now() // Simple ID generation
-//       });
-//       message.success('Employee added successfully');
-//     }
-    
-//     setIsModalVisible(false);
-//   };
-
-const onFinish = (values) => {
+  const onFinish = (values: any) => {
     const scheduleValues = scheduleForm.getFieldsValue();
-    const lichLamViec = {};
-  
-    weekDays.forEach(day => {
+    const lichLamViec: { [key: string]: { start: string; end: string } } = {};
+
+    weekDays.forEach((day) => {
       if (scheduleValues[`${day}_enabled`]) {
         lichLamViec[day] = {
           start: scheduleValues[`${day}_start`]?.format('HH:mm') || '09:00',
@@ -162,35 +145,36 @@ const onFinish = (values) => {
         };
       }
     });
-  
-    console.log("Saving Employee Data:", { ...values, lichLamViec });
-  
-    const employeeData = {
-      ...values,
+
+    const employeeData: DichVu.NhanVien = {
+      employee_id: editingEmployee ? editingEmployee.employee_id : Date.now(),
+      name: values.name,
+      age: values.age,
+      sokhach: values.sokhach,
       lichLamViec,
-      services: values.services || []
+      dichvu_id: values.services || [], // Use dichvu_id as per model
     };
-  
+
     if (editingEmployee) {
-      updateEmployee({ ...editingEmployee, ...employeeData });
+      updateEmployee(employeeData);
       message.success('Employee updated successfully');
     } else {
-      addEmployee({ ...employeeData, employee_id: Date.now() });
+      addEmployee(employeeData);
       message.success('Employee added successfully');
     }
-  
+
     setIsModalVisible(false);
   };
-  
 
   // Helper function to get service names
-  const getServiceNames = (serviceIds) => {
+  const getServiceNames = (serviceIds?: number[]): string => {
     if (!serviceIds || !serviceIds.length) return 'No services assigned';
-    
-    return serviceIds.map(id => {
-      const service = services.find(s => s.dichvu_id === id);
-      return service ? service.name : `Unknown (${id})`;
-    }).join(', ');
+    return serviceIds
+      .map((id) => {
+        const service = services.find((s) => s.dichvu_id === id);
+        return service ? service.name : `Unknown (${id})`;
+      })
+      .join(', ');
   };
 
   const columns = [
@@ -207,20 +191,33 @@ const onFinish = (values) => {
     {
       title: 'Services',
       key: 'services',
-      render: (_, record) => getServiceNames(record.services),
+      render: (_: any, record: DichVu.NhanVien) => getServiceNames(record.dichvu_id),
     },
     {
       title: 'Max Clients Per Day',
       dataIndex: 'sokhach',
       key: 'sokhach',
-      render: (sokhach) => sokhach || 'Unlimited',
+      render: (sokhach?: number) => sokhach || 'Unlimited',
+    },
+    {
+      title: 'Overall Rating',
+      dataIndex: 'averageRating',
+      key: 'averageRating',
+      render: (rating: number) => (rating > 0 ? `${rating.toFixed(1)} / 5.0` : 'N/A'),
+      sorter: (a: any, b: any) => a.averageRating - b.averageRating,
+    },
+    {
+      title: 'Review Count',
+      dataIndex: 'reviewCount',
+      key: 'reviewCount',
+      render: (count: number) => count,
+      sorter: (a: any, b: any) => a.reviewCount - b.reviewCount,
     },
     {
       title: 'Work Schedule',
       key: 'schedule',
-      render: (_, record) => {
+      render: (_: any, record: DichVu.NhanVien) => {
         if (!record.lichLamViec) return 'No schedule set';
-        
         return (
           <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
             {Object.entries(record.lichLamViec).map(([day, hours]) => (
@@ -235,16 +232,20 @@ const onFinish = (values) => {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, record) => (
+      render: (_: any, record: DichVu.NhanVien) => (
         <Space size="middle">
-          <Button type="link" onClick={() => showEditModal(record)}>Edit</Button>
+          <Button type="link" onClick={() => showEditModal(record)}>
+            Edit
+          </Button>
           <Popconfirm
             title="Are you sure you want to delete this employee?"
             onConfirm={() => handleDelete(record.employee_id)}
             okText="Yes"
             cancelText="No"
           >
-            <Button type="link" danger>Delete</Button>
+            <Button type="link" danger>
+              Delete
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -254,22 +255,22 @@ const onFinish = (values) => {
   return (
     <div style={{ padding: 20 }}>
       <h1>Employee Management</h1>
-      
+
       <Card style={{ marginBottom: 16 }}>
         <Button type="primary" onClick={showAddModal}>
           Add New Employee
         </Button>
       </Card>
-      
-      <Table 
-        dataSource={employees} 
-        columns={columns} 
+
+      <Table
+        dataSource={employeeStats} // Use enriched data with ratings
+        columns={columns}
         rowKey="employee_id"
         pagination={{ pageSize: 10 }}
       />
-      
+
       <Modal
-        title={editingEmployee ? "Edit Employee" : "Add New Employee"}
+        title={editingEmployee ? 'Edit Employee' : 'Add New Employee'}
         visible={isModalVisible}
         onCancel={handleCancel}
         width={700}
@@ -277,21 +278,20 @@ const onFinish = (values) => {
           <Button key="cancel" onClick={handleCancel}>
             Cancel
           </Button>,
-          <Button key="submit" type="primary" onClick={() => {
-            // Submit both forms
-            form.submit();
-          }}>
+          <Button
+            key="submit"
+            type="primary"
+            onClick={() => {
+              form.submit();
+            }}
+          >
             {editingEmployee ? 'Update' : 'Add'}
           </Button>,
         ]}
       >
         <Tabs defaultActiveKey="1">
           <TabPane tab="Basic Information" key="1">
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={onFinish}
-            >
+            <Form form={form} layout="vertical" onFinish={onFinish}>
               <Form.Item
                 name="name"
                 label="Name"
@@ -299,7 +299,7 @@ const onFinish = (values) => {
               >
                 <Input placeholder="Employee name" />
               </Form.Item>
-              
+
               <Form.Item
                 name="age"
                 label="Age"
@@ -307,51 +307,40 @@ const onFinish = (values) => {
               >
                 <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder="Employee age" />
               </Form.Item>
-              
+
               <Form.Item
                 name="services"
                 label="Services Provided"
                 rules={[{ required: true, message: 'Please select at least one service' }]}
               >
-                <Select
-                  mode="multiple"
-                  placeholder="Select services this employee provides"
-                  style={{ width: '100%' }}
-                >
-                  {services.map(service => (
+                <Select mode="multiple" placeholder="Select services this employee provides" style={{ width: '100%' }}>
+                  {services.map((service) => (
                     <Option key={service.dichvu_id} value={service.dichvu_id}>
                       {service.name} - ${service.price} ({service.thoiGianThucHien || 60} mins)
                     </Option>
                   ))}
                 </Select>
               </Form.Item>
-              
-              <Form.Item
-                name="sokhach"
-                label="Maximum Clients Per Day"
-                tooltip="Leave empty for unlimited clients"
-              >
+
+              <Form.Item name="sokhach" label="Maximum Clients Per Day" tooltip="Leave empty for unlimited clients">
                 <InputNumber min={1} style={{ width: '100%' }} placeholder="Maximum clients per day" />
               </Form.Item>
             </Form>
           </TabPane>
-          
+
           <TabPane tab="Work Schedule" key="2">
-            <Form
-              form={scheduleForm}
-              layout="vertical"
-            >
-              {weekDays.map(day => (
-                <Card 
-                  key={day} 
-                  title={day.charAt(0).toUpperCase() + day.slice(1)} 
-                  size="small" 
+            <Form form={scheduleForm} layout="vertical">
+              {weekDays.map((day) => (
+                <Card
+                  key={day}
+                  title={day.charAt(0).toUpperCase() + day.slice(1)}
+                  size="small"
                   style={{ marginBottom: 10 }}
                 >
                   <Form.Item name={`${day}_enabled`} valuePropName="checked">
                     <Checkbox>Working day</Checkbox>
                   </Form.Item>
-                  
+
                   <Form.Item noStyle shouldUpdate>
                     {({ getFieldValue }) => {
                       const isEnabled = getFieldValue(`${day}_enabled`);
@@ -362,23 +351,15 @@ const onFinish = (values) => {
                             label="Start time"
                             style={{ marginBottom: 0, flex: 1 }}
                           >
-                            <TimePicker 
-                              format="HH:mm" 
-                              style={{ width: '100%' }} 
-                              disabled={!isEnabled}
-                            />
+                            <TimePicker format="HH:mm" style={{ width: '100%' }} disabled={!isEnabled} />
                           </Form.Item>
-                          
+
                           <Form.Item
                             name={`${day}_end`}
                             label="End time"
                             style={{ marginBottom: 0, flex: 1 }}
                           >
-                            <TimePicker 
-                              format="HH:mm" 
-                              style={{ width: '100%' }} 
-                              disabled={!isEnabled}
-                            />
+                            <TimePicker format="HH:mm" style={{ width: '100%' }} disabled={!isEnabled} />
                           </Form.Item>
                         </div>
                       );
