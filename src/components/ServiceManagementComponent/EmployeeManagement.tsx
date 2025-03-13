@@ -1,42 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useModel } from 'umi';
-import { Form, Input, InputNumber, Button, Table, Space, Modal, Card, Tabs, TimePicker, Checkbox, Popconfirm, message, Select } from 'antd';
+import { Form, Button, Table, Space, Modal, Card, Tabs, Popconfirm, message } from 'antd';
 import moment from 'moment';
-
-// Assuming DichVu interfaces are defined elsewhere
-declare namespace DichVu {
-  export interface NhanVien {
-    employee_id: number;
-    name: string;
-    age: number;
-    sokhach?: number;
-    lichLamViec?: { [key: string]: { start: string; end: string } };
-    dichvu_id: number[];
-  }
-
-  export interface DichVu {
-    dichvu_id: number;
-    name: string;
-    price: number;
-    description?: string;
-    thoiGianThucHien?: number;
-  }
-
-  export interface Review {
-    review_id: number;
-    review: string;
-    rating: number;
-    employee_id: number;
-    user_id: number;
-    dichvu_id: number;
-    create_at?: string;
-    appointment_id?: number;
-    response?: string;
-  }
-}
+import EmployeeBasicInfoForm from '../Form//EmployeeBasicInfoForm';
+import EmployeeScheduleForm from '../Form/EmployeeScheduleForm';
+import DichVu from '@/models/ServiceManagement/DichVu'; // Import from your types file
 
 const { TabPane } = Tabs;
-const { Option } = Select;
 const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 const EmployeeManagement = () => {
@@ -90,6 +60,18 @@ const EmployeeManagement = () => {
     }
   }, [editingEmployee, scheduleForm]);
 
+  // Set form values when editing an employee
+  useEffect(() => {
+    if (editingEmployee) {
+      form.setFieldsValue({
+        name: editingEmployee.name,
+        age: editingEmployee.age,
+        sokhach: editingEmployee.sokhach || 10,
+        services: editingEmployee.dichvu_id || [],
+      });
+    }
+  }, [editingEmployee, form]);
+
   // Calculate employee stats (rating and review count) from local storage
   useEffect(() => {
     const storedReviews: DichVu.Review[] = JSON.parse(localStorage.getItem('reviews') || '[]');
@@ -115,12 +97,6 @@ const EmployeeManagement = () => {
 
   const showEditModal = (employee: DichVu.NhanVien) => {
     setEditingEmployee(employee);
-    form.setFieldsValue({
-      name: employee.name,
-      age: employee.age,
-      sokhach: employee.sokhach || 10,
-      services: employee.dichvu_id || [], // Use dichvu_id as per model
-    });
     setIsModalVisible(true);
   };
 
@@ -133,10 +109,13 @@ const EmployeeManagement = () => {
     message.success('Employee deleted successfully');
   };
 
-  const onFinish = (values: any) => {
+  const onFinish = () => {
+    // Get values from both forms
+    const basicValues = form.getFieldsValue();
     const scheduleValues = scheduleForm.getFieldsValue();
+    
+    // Process schedule data
     const lichLamViec: { [key: string]: { start: string; end: string } } = {};
-
     weekDays.forEach((day) => {
       if (scheduleValues[`${day}_enabled`]) {
         lichLamViec[day] = {
@@ -148,11 +127,11 @@ const EmployeeManagement = () => {
 
     const employeeData: DichVu.NhanVien = {
       employee_id: editingEmployee ? editingEmployee.employee_id : Date.now(),
-      name: values.name,
-      age: values.age,
-      sokhach: values.sokhach,
+      name: basicValues.name,
+      age: basicValues.age,
+      sokhach: basicValues.sokhach,
       lichLamViec,
-      dichvu_id: values.services || [], // Use dichvu_id as per model
+      dichvu_id: basicValues.services || [],
     };
 
     if (editingEmployee) {
@@ -263,7 +242,7 @@ const EmployeeManagement = () => {
       </Card>
 
       <Table
-        dataSource={employeeStats} // Use enriched data with ratings
+        dataSource={employeeStats}
         columns={columns}
         rowKey="employee_id"
         pagination={{ pageSize: 10 }}
@@ -282,7 +261,15 @@ const EmployeeManagement = () => {
             key="submit"
             type="primary"
             onClick={() => {
-              form.submit();
+              // Validate both forms
+              Promise.all([
+                form.validateFields(),
+                scheduleForm.validateFields()
+              ]).then(() => {
+                onFinish();
+              }).catch(error => {
+                console.error('Validation failed:', error);
+              });
             }}
           >
             {editingEmployee ? 'Update' : 'Add'}
@@ -291,83 +278,15 @@ const EmployeeManagement = () => {
       >
         <Tabs defaultActiveKey="1">
           <TabPane tab="Basic Information" key="1">
-            <Form form={form} layout="vertical" onFinish={onFinish}>
-              <Form.Item
-                name="name"
-                label="Name"
-                rules={[{ required: true, message: 'Please enter employee name' }]}
-              >
-                <Input placeholder="Employee name" />
-              </Form.Item>
-
-              <Form.Item
-                name="age"
-                label="Age"
-                rules={[{ required: true, message: 'Please enter employee age' }]}
-              >
-                <InputNumber min={18} max={100} style={{ width: '100%' }} placeholder="Employee age" />
-              </Form.Item>
-
-              <Form.Item
-                name="services"
-                label="Services Provided"
-                rules={[{ required: true, message: 'Please select at least one service' }]}
-              >
-                <Select mode="multiple" placeholder="Select services this employee provides" style={{ width: '100%' }}>
-                  {services.map((service) => (
-                    <Option key={service.dichvu_id} value={service.dichvu_id}>
-                      {service.name} - ${service.price} ({service.thoiGianThucHien || 60} mins)
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-
-              <Form.Item name="sokhach" label="Maximum Clients Per Day" tooltip="Leave empty for unlimited clients">
-                <InputNumber min={1} style={{ width: '100%' }} placeholder="Maximum clients per day" />
-              </Form.Item>
-            </Form>
+            <EmployeeBasicInfoForm 
+              form={form} 
+              services={services} 
+            />
           </TabPane>
-
           <TabPane tab="Work Schedule" key="2">
-            <Form form={scheduleForm} layout="vertical">
-              {weekDays.map((day) => (
-                <Card
-                  key={day}
-                  title={day.charAt(0).toUpperCase() + day.slice(1)}
-                  size="small"
-                  style={{ marginBottom: 10 }}
-                >
-                  <Form.Item name={`${day}_enabled`} valuePropName="checked">
-                    <Checkbox>Working day</Checkbox>
-                  </Form.Item>
-
-                  <Form.Item noStyle shouldUpdate>
-                    {({ getFieldValue }) => {
-                      const isEnabled = getFieldValue(`${day}_enabled`);
-                      return (
-                        <div style={{ display: 'flex', gap: 10 }}>
-                          <Form.Item
-                            name={`${day}_start`}
-                            label="Start time"
-                            style={{ marginBottom: 0, flex: 1 }}
-                          >
-                            <TimePicker format="HH:mm" style={{ width: '100%' }} disabled={!isEnabled} />
-                          </Form.Item>
-
-                          <Form.Item
-                            name={`${day}_end`}
-                            label="End time"
-                            style={{ marginBottom: 0, flex: 1 }}
-                          >
-                            <TimePicker format="HH:mm" style={{ width: '100%' }} disabled={!isEnabled} />
-                          </Form.Item>
-                        </div>
-                      );
-                    }}
-                  </Form.Item>
-                </Card>
-              ))}
-            </Form>
+            <EmployeeScheduleForm
+              form={scheduleForm}
+            />
           </TabPane>
         </Tabs>
       </Modal>

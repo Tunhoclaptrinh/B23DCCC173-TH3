@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useModel } from 'umi';
-import { Form, Input, InputNumber, Button, Table, Space, Modal, Card, Popconfirm, message } from 'antd';
-
-const { TextArea } = Input;
+import { Form, Button, Table, Space, Modal, Card, Popconfirm, message } from 'antd';
+import ServiceForm from '../../components/Form/ServiceForm'; // Import the new component
 
 const ServiceManagement = () => {
   const { services, addService, updateService, deleteService } = useModel('ServiceManagement.appointment');
@@ -19,12 +18,6 @@ const ServiceManagement = () => {
 
   const showEditModal = (service) => {
     setEditingService(service);
-    form.setFieldsValue({
-      name: service.name,
-      price: service.price,
-      description: service.description || '',
-      thoiGianThucHien: service.thoiGianThucHien || 60,
-    });
     setIsModalVisible(true);
   };
 
@@ -130,55 +123,11 @@ const ServiceManagement = () => {
           </Button>,
         ]}
       >
-        <Form
-          form={form}
-          layout="vertical"
+        <ServiceForm
+          initialValues={editingService}
           onFinish={onFinish}
-        >
-          <Form.Item
-            name="name"
-            label="Service Name"
-            rules={[{ required: true, message: 'Please enter service name' }]}
-          >
-            <Input placeholder="Service name" />
-          </Form.Item>
-          
-          <Form.Item
-            name="price"
-            label="Price"
-            rules={[{ required: true, message: 'Please enter service price' }]}
-          >
-            <InputNumber 
-              min={0} 
-              precision={2} 
-              style={{ width: '100%' }} 
-              placeholder="Service price"
-              formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={value => value.replace(/\$\s?|(,*)/g, '')}
-            />
-          </Form.Item>
-          
-          <Form.Item
-            name="thoiGianThucHien"
-            label="Duration (minutes)"
-            rules={[{ required: true, message: 'Please enter service duration' }]}
-            initialValue={60}
-          >
-            <InputNumber 
-              min={5} 
-              step={5} 
-              style={{ width: '100%' }} 
-              placeholder="Service duration in minutes"
-            />
-          </Form.Item>
-          
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <TextArea rows={4} placeholder="Service description" />
-          </Form.Item>
-        </Form>
+          form={form}
+        />
       </Modal>
     </div>
   );

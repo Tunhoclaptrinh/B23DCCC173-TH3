@@ -1,3 +1,5 @@
+import e from "express";
+
 declare module DichVu {
     export interface User {
         user_id: number;
@@ -45,3 +47,5 @@ declare module DichVu {
         create_at?: string; // Thời gian tạo đánh giá
     }
 }
+
+export default DichVu;
