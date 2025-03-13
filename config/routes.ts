@@ -91,35 +91,32 @@ export default [
 			},
 			{
 				"path": "/service-management/customer-management",
-				"name": "Customer Management",
+				"name": "Customer",
 				component: '@/components/ServiceManagementComponent/CustomerManagement',
 
 			},
 			{
 				"path": "/service-management/service-management",
-				"name": "Service Management",
+				"name": "Service",
 				component: '@/components/ServiceManagementComponent/ServiceManagement',
 			},
 			{
 				"path": "/service-management/employee-management",
-				"name": "Employee Management",
+				"name": "Employee",
 				component: '@/components/ServiceManagementComponent/EmployeeManagement',
 
 			},
 			{
 				"path": "/service-management/appointment-management",
-				"name": "Appointment Management",
+				"name": "Appointment",
 				// component: '@/components/ServiceManagementComponent/AppointmentScheduler',
 				component: '@/components/ServiceManagementComponent/AppointmentManagement',
 			},
 			{
 				"path": "/service-management/review-responses",
-				"name": "Review Responses"
+				"name": "Review Responses",
+				component: '@/components/ServiceManagementComponent/ReviewManagement',
 			},
-			{
-				"path": "/service-management/statistics",
-				"name": "Statistics"
-			}
 		]
 	},
 	

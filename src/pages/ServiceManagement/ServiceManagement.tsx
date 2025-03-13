@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useModel } from 'umi';
 import { Card, Row, Col, Statistic, DatePicker, Table, Select, Space, Empty } from 'antd';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-// Nhớ xóa recharts
+// Remove recharts import and use custom chart components
+import LineChart from '../../components/Chart/LineChart';
+import ColumnChart from '../../components/Chart/ColumnChart';
+import DonutChart from '../../components/Chart/DonutChart';
+import MonthlyStatistics from './MonthlyStatistics'; 
 import moment from 'moment';
 
 const { RangePicker } = DatePicker;
@@ -99,6 +102,7 @@ const Dashboard = () => {
       const service = services.find(s => s.dichvu_id === app.dichvu_id);
       return sum + (service?.price || 0);
     }, 0);
+    
 
   // Get appointment status counts
   const getStatusCounts = () => {
@@ -115,6 +119,11 @@ const Dashboard = () => {
       { name: 'Completed', value: counts.completed },
       { name: 'Canceled', value: counts.canceled }
     ].filter(item => item.value > 0);
+  };
+
+  // Format currency for chart display
+  const formatCurrency = (value) => {
+    return '$' + value.toFixed(2);
   };
 
   // Table columns for appointments
@@ -166,6 +175,41 @@ const Dashboard = () => {
       render: (status) => status || 'pending'
     }
   ];
+
+  // Prepare data for LineChart (appointments by day)
+  const appointmentChartData = {
+    xAxis: appointmentStats.map(item => item.date),
+    yAxis: [appointmentStats.map(item => item.count)],
+    yLabel: ['Appointments'],
+    formatY: (val) => val.toString()
+  };
+
+  // Prepare data for revenue by service (DonutChart)
+  const serviceRevenueChartData = {
+    xAxis: revenueByService.map(item => item.name),
+    yAxis: [revenueByService.map(item => item.value)],
+    formatY: formatCurrency,
+    colors: COLORS.slice(0, revenueByService.length),
+    showTotal: true
+  };
+
+  // Prepare data for revenue by employee (ColumnChart)
+  const employeeRevenueChartData = {
+    xAxis: revenueByEmployee.map(item => item.name),
+    yAxis: [revenueByEmployee.map(item => item.value)],
+    yLabel: ['Revenue'],
+    formatY: formatCurrency,
+    colors: ['#82ca9d']
+  };
+
+  // Prepare data for appointment status distribution (DonutChart)
+  const statusDistributionChartData = {
+    xAxis: getStatusCounts().map(item => item.name),
+    yAxis: [getStatusCounts().map(item => item.value)],
+    formatY: (val) => val.toString(),
+    colors: COLORS.slice(0, getStatusCounts().length),
+    showTotal: true
+  };
 
   return (
     <div style={{ padding: 20 }}>
@@ -240,43 +284,23 @@ const Dashboard = () => {
         <Col span={12}>
           <Card title="Appointments by Day">
             {appointmentStats.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={appointmentStats}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="count" stroke="#8884d8" name="Appointments" />
-                </LineChart>
-              </ResponsiveContainer>
+              <LineChart 
+                {...appointmentChartData}
+                height={300}
+              />
             ) : (
               <Empty description="No appointment data available" />
             )}
           </Card>
         </Col>
+
         <Col span={12}>
           <Card title="Revenue by Service">
             {revenueByService.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={revenueByService}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {revenueByService.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
-                </PieChart>
-              </ResponsiveContainer>
+              <DonutChart 
+                {...serviceRevenueChartData}
+                height={300}
+              />
             ) : (
               <Empty description="No revenue data available" />
             )}
@@ -288,16 +312,10 @@ const Dashboard = () => {
         <Col span={12}>
           <Card title="Revenue by Employee">
             {revenueByEmployee.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={revenueByEmployee}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
-                  <Legend />
-                  <Bar dataKey="value" fill="#82ca9d" name="Revenue" />
-                </BarChart>
-              </ResponsiveContainer>
+              <ColumnChart 
+                {...employeeRevenueChartData}
+                height={300}
+              />
             ) : (
               <Empty description="No employee revenue data available" />
             )}
@@ -306,25 +324,10 @@ const Dashboard = () => {
         <Col span={12}>
           <Card title="Appointment Status Distribution">
             {getStatusCounts().length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={getStatusCounts()}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {getStatusCounts().map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <DonutChart 
+                {...statusDistributionChartData}
+                height={300}
+              />
             ) : (
               <Empty description="No status data available" />
             )}
@@ -332,6 +335,8 @@ const Dashboard = () => {
         </Col>
       </Row>
       
+      <MonthlyStatistics />
+
       {/* Employee Ratings */}
       <Card title="Employee Ratings" style={{ marginBottom: 20 }}>
         {ratings.length > 0 ? (
