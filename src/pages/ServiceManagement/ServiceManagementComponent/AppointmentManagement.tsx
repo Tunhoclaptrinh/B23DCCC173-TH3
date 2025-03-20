@@ -1,23 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useModel } from 'umi';
 import { 
-  Form, 
-  Input, 
   Button, 
   Table, 
   Space, 
   Modal, 
   Card, 
-  DatePicker, 
-  TimePicker, 
-  Select, 
   Popconfirm, 
   message, 
   Tag 
 } from 'antd';
+import { Form } from 'antd';
 import moment from 'moment';
-
-const { Option } = Select;
+import AppointmentForm from '../../../components/Form/AppointmentForm';
 
 // Status options and colors
 const STATUS_OPTIONS = [
@@ -39,7 +34,7 @@ const AppointmentManagement = () => {
     getEmployeesByService,
     checkAppointmentConflict,
     canEmployeeProvideService,
-    addUser  // Added to be able to create users if needed
+    addUser
   } = useModel('ServiceManagement.appointment');
   
   const [form] = Form.useForm();
@@ -86,20 +81,6 @@ const AppointmentManagement = () => {
       employee_id: undefined,
       time: undefined 
     });
-  };
-
-  // Toggle new customer form
-  const toggleNewCustomerMode = () => {
-    setIsNewCustomerMode(!isNewCustomerMode);
-    if (!isNewCustomerMode) {
-      form.setFieldsValue({ user_id: undefined });
-    } else {
-      form.setFieldsValue({ 
-        new_customer_name: undefined,
-        new_customer_age: undefined,
-        new_customer_gender: undefined
-      });
-    }
   };
 
   // Show modal to add a new appointment
@@ -159,6 +140,26 @@ const AppointmentManagement = () => {
   const handleDelete = (appointmentId) => {
     deleteAppointment(appointmentId);
     message.success('Appointment deleted successfully');
+  };
+
+  // Check if employee is available on selected date
+  const isEmployeeAvailable = (employeeId) => {
+    if (!selectedDate) return true;
+    
+    const employee = employees.find(e => e.employee_id === employeeId);
+    if (!employee || !employee.lichLamViec) return true;
+    
+    // Get day of week from selected date
+    const dayOfWeek = moment(selectedDate).format('dddd').toLowerCase();
+    
+    // Check if employee works on this day
+    return !!employee.lichLamViec[dayOfWeek];
+  };
+
+  // Format employee name with availability
+  const formatEmployeeOption = (employee) => {
+    const isAvailable = isEmployeeAvailable(employee.employee_id);
+    return `${employee.name}${isAvailable ? '' : ' (Not scheduled this day)'}`;
   };
 
   // Handle form submission
@@ -245,26 +246,6 @@ const AppointmentManagement = () => {
     }
     
     setIsModalVisible(false);
-  };
-
-  // Check if employee is available on selected date
-  const isEmployeeAvailable = (employeeId) => {
-    if (!selectedDate) return true;
-    
-    const employee = employees.find(e => e.employee_id === employeeId);
-    if (!employee || !employee.lichLamViec) return true;
-    
-    // Get day of week from selected date
-    const dayOfWeek = moment(selectedDate).format('dddd').toLowerCase();
-    
-    // Check if employee works on this day
-    return !!employee.lichLamViec[dayOfWeek];
-  };
-
-  // Format employee name with availability
-  const formatEmployeeOption = (employee) => {
-    const isAvailable = isEmployeeAvailable(employee.employee_id);
-    return `${employee.name}${isAvailable ? '' : ' (Not scheduled this day)'}`;
   };
 
   // Table columns
@@ -381,152 +362,23 @@ const AppointmentManagement = () => {
           </Button>,
         ]}
       >
-        <Form
+        <AppointmentForm
           form={form}
-          layout="vertical"
           onFinish={onFinish}
-        >
-          {!isStatusUpdateMode && (
-            <>
-              {!isNewCustomerMode ? (
-                <>
-                  <Form.Item
-                    name="user_id"
-                    label="Client"
-                    rules={[{ required: !isNewCustomerMode, message: 'Please select a client' }]}
-                  >
-                    <Select 
-                      placeholder="Select client"
-                      dropdownRender={menu => (
-                        <>
-                          {menu}
-                          <div style={{ padding: '8px', borderTop: '1px solid #e8e8e8' }}>
-                            <Button type="link" onClick={toggleNewCustomerMode}>
-                              + Add New Customer
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    >
-                      {users.map(user => (
-                        <Option key={user.user_id} value={user.user_id}>
-                          {user.name}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </>
-              ) : (
-                <>
-                  <div style={{ marginBottom: 16 }}>
-                    <Button type="link" onClick={toggleNewCustomerMode}>
-                      &lt; Back to Customer Selection
-                    </Button>
-                  </div>
-                  <Form.Item
-                    name="new_customer_name"
-                    label="Customer Name"
-                    rules={[{ required: isNewCustomerMode, message: 'Please enter customer name' }]}
-                  >
-                    <Input placeholder="Enter customer name" />
-                  </Form.Item>
-                  <Form.Item
-                    name="new_customer_age"
-                    label="Customer Age"
-                  >
-                    <Input type="number" placeholder="Enter age" />
-                  </Form.Item>
-                  <Form.Item
-                    name="new_customer_gender"
-                    label="Customer Gender"
-                  >
-                    <Select placeholder="Select gender">
-                      <Option value="male">Male</Option>
-                      <Option value="female">Female</Option>
-                      <Option value="other">Other</Option>
-                    </Select>
-                  </Form.Item>
-                </>
-              )}
-              
-              <Form.Item
-                name="dichvu_id"
-                label="Service"
-                rules={[{ required: true, message: 'Please select a service' }]}
-              >
-                <Select 
-                  placeholder="Select service"
-                  onChange={handleServiceChange}
-                >
-                  {services.map(service => (
-                    <Option key={service.dichvu_id} value={service.dichvu_id}>
-                      {service.name} - ${service.price} ({service.thoiGianThucHien || 60} mins)
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              
-              <Form.Item
-                name="date"
-                label="Date"
-                rules={[{ required: true, message: 'Please select a date' }]}
-              >
-                <DatePicker 
-                  style={{ width: '100%' }} 
-                  disabledDate={current => current && current < moment().startOf('day')}
-                  onChange={handleDateChange}
-                />
-              </Form.Item>
-              
-              <Form.Item
-                name="employee_id"
-                label="Employee"
-                rules={[{ required: true, message: 'Please select an employee' }]}
-              >
-                <Select 
-                  placeholder="Select employee"
-                  disabled={!selectedService}
-                >
-                  {availableEmployees.map(employee => (
-                    <Option 
-                      key={employee.employee_id} 
-                      value={employee.employee_id}
-                      disabled={!isEmployeeAvailable(employee.employee_id)}
-                    >
-                      {formatEmployeeOption(employee)}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              
-              <Form.Item
-                name="time"
-                label="Time"
-                rules={[{ required: true, message: 'Please select a time' }]}
-              >
-                <TimePicker 
-                  format="HH:mm" 
-                  style={{ width: '100%' }} 
-                  minuteStep={15}
-                />
-              </Form.Item>
-            </>
-          )}
-          
-          <Form.Item
-            name="status"
-            label="Status"
-            rules={[{ required: true, message: 'Please select a status' }]}
-          >
-            <Select placeholder="Select status">
-              {STATUS_OPTIONS.map(status => (
-                <Option key={status.value} value={status.value}>
-                  {status.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
+          editingAppointment={editingAppointment}
+          isStatusUpdateMode={isStatusUpdateMode}
+          isNewCustomerMode={isNewCustomerMode}
+          setIsNewCustomerMode={setIsNewCustomerMode}
+          services={services}
+          users={users}
+          availableEmployees={availableEmployees}
+          selectedService={selectedService}
+          selectedDate={selectedDate}
+          handleServiceChange={handleServiceChange}
+          handleDateChange={handleDateChange}
+          isEmployeeAvailable={isEmployeeAvailable}
+          formatEmployeeOption={formatEmployeeOption}
+        />
       </Modal>
     </div>
   );
