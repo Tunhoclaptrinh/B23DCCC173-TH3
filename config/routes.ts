@@ -92,30 +92,30 @@ export default [
 			{
 				"path": "/service-management/customer-management",
 				"name": "Customer",
-				component: '@/components/ServiceManagementComponent/CustomerManagement',
+				component: './ServiceManagement/ServiceManagementComponent/CustomerManagement',
 
 			},
 			{
 				"path": "/service-management/service-management",
 				"name": "Service",
-				component: '@/components/ServiceManagementComponent/ServiceManagement',
+				component: './ServiceManagement/ServiceManagementComponent/ServiceManagement',
 			},
 			{
 				"path": "/service-management/employee-management",
 				"name": "Employee",
-				component: '@/components/ServiceManagementComponent/EmployeeManagement',
+				component: './ServiceManagement/ServiceManagementComponent/EmployeeManagement',
 
 			},
 			{
 				"path": "/service-management/appointment-management",
 				"name": "Appointment",
 				// component: '@/components/ServiceManagementComponent/AppointmentScheduler',
-				component: '@/components/ServiceManagementComponent/AppointmentManagement',
+				component: './ServiceManagement/ServiceManagementComponent/AppointmentManagement',
 			},
 			{
 				"path": "/service-management/review-responses",
 				"name": "Review Responses",
-				component: '@/components/ServiceManagementComponent/ReviewManagement',
+				component: './ServiceManagement/ServiceManagementComponent/ReviewManagement',
 			},
 		]
 	},

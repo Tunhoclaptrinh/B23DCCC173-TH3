@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useModel } from 'umi';
 import { Form, Button, Table, Space, Modal, Card, Popconfirm, message } from 'antd';
-import ServiceForm from '../../components/Form/ServiceForm'; // Import the new component
+import ServiceForm from '../../../components/Form/ServiceForm'; // Import the new component
 
 const ServiceManagement = () => {
   const { services, addService, updateService, deleteService } = useModel('ServiceManagement.appointment');

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useModel } from 'umi';
 import { Button, Table, Space, Modal, Card, Popconfirm, message } from 'antd';
-import CustomerForm from '../../components/Form/CustomerForm'; // Import the new component
+import CustomerForm from '../../../components/Form/CustomerForm'; // Import the new component
 
 const CustomerManagement = () => {
   const { users, addUser, updateUser, deleteUser } = useModel('ServiceManagement.appointment');

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useModel } from 'umi';
 import { Form, Button, Table, Space, Modal, Card, Tabs, Popconfirm, message } from 'antd';
 import moment from 'moment';
-import EmployeeBasicInfoForm from '../Form//EmployeeBasicInfoForm';
-import EmployeeScheduleForm from '../Form/EmployeeScheduleForm';
+import EmployeeBasicInfoForm from '../../../components/Form/EmployeeBasicInfoForm';
+import EmployeeScheduleForm from '../../../components/Form/EmployeeScheduleForm';
 import DichVu from '@/models/ServiceManagement/DichVu'; // Import from your types file
 
 const { TabPane } = Tabs;
